@@ -28,6 +28,7 @@ firewall.d | Linux FW | /etc/firewalld |
 ## CentOS Install
 
 | Logical Volume |	Desired Capacity |
+| --------------- | --------------- |
  |/home |	100 GiB |
  |/data/kafka |	100 GiB |
  |/var/log |	50 GiB |
