@@ -23,3 +23,20 @@ server.properties | Kafka | /etc/kafka |
 kibana.yml | Kibana | /etc/kibana/ | 
 firewall.d | Linux FW | /etc/firewalld |
 | --------------- | --------------- | --------------- | 
+
+
+## CentOS Install
+
+| Logical Volume |	Desired Capacity |
+ |/home |	100 GiB |
+ |/data/kafka |	100 GiB |
+ |/var/log |	50 GiB |
+ |/data/stenographer |	500 GiB |
+ |/data/suricata |	25 GiB |
+ |/data/elasticsearch |	300 GiB |
+ |/tmp	 |5 GiB |
+ |/var |	50 GiB |
+ |/boot |	1 GiB |
+ |/boot/efi	 |200 MiB |
+ |/	 |Remaining capacity 99999 |
+ |swap	 |15.69 GiB |
