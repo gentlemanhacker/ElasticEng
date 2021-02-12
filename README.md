@@ -470,11 +470,6 @@ cape stack
 `yum install jq`- nice tool for reading json. tail | jq  
 `suricata/ zeek-config`for zeek config information
 
-#### Troubleshooting kafka
-- `systemctl stop kafka zookeeper` -takes a few minutes
-- `rm -rf /var/lib/zookeeper/version-2/*`
-- `rm -rf /data/kafka/*`
-- `systemctl start zookeeper kafka`
 
 ##### Cluster
 `vim /var/lib/zookeeper/myid`
