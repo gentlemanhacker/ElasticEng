@@ -20,3 +20,8 @@ ss -lnt
 Read Kafka data in real time
 * systemctl stop logstash
 * /usr/share/kafka/bin/kafka-console-consumer.sh --bootstrap-server 172.16.30.102:9092 --topic zeek-raw
+
+- `systemctl stop kafka zookeeper` -takes a few minutes
+- `rm -rf /var/lib/zookeeper/version-2/*`
+- `rm -rf /data/kafka/*`
+- `systemctl start zookeeper kafka`
