@@ -3,7 +3,23 @@ Elastic Engineering
 
 
 
-Key Addresses
+##Key Addresses
 | Host Sensor | Netmask | Gateway/Edge | DNS Servers | pfSense | 
 | --------------- | --------------- | --------------- | --------------- | --------------- |
-| Row 1 Column 1 | Row 1 Column 2 | Row 1 Column 3 | Row 1 Column 4 | Row 1 Column 5 |
+| 172.16.30. | 172.16.30. | 172.16.30. |172.16.30. | 172.16.30. |
+| --------------- | --------------- | --------------- | --------------- | --------------- |
+
+
+##General Order of Things
+Setup -> CentOS -> pfSense -> tap/ethtool script -> local.repo -> install rockNSM ( Stenographer, Suricata, Zeek, Zookeeper, Kafka, Filebeat, Elasticsearch, Logstash, Kibana) -> Restart all services
+
+##Key Files
+| File | App | Location |  
+| --------------- | --------------- | --------------- | 
+filebeat.yml | Filebeat | x |
+elasticsearch.yml | ElasticSearch | |
+jvm.options| ElasticSearch | |
+server.properties | Kafka | | 
+kibana.yml | Kibana | | 
+firewall.d | Linux FW | /etc/firewalld |
+| --------------- | --------------- | --------------- | 
