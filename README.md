@@ -16,10 +16,10 @@ Setup -> CentOS -> pfSense -> tap/ethtool script -> local.repo -> install rockNS
 ##Key Files
 | File | App | Location |  
 | --------------- | --------------- | --------------- | 
-filebeat.yml | Filebeat | x |
-elasticsearch.yml | ElasticSearch | |
-jvm.options| ElasticSearch | |
-server.properties | Kafka | | 
-kibana.yml | Kibana | | 
+filebeat.yml | Filebeat | /etc/filebeat/ |
+elasticsearch.yml | ElasticSearch | /etc/elasticsearch/config |
+jvm.options| ElasticSearch | /etc/elasticsearch/config |
+server.properties | Kafka | /etc/kafka | 
+kibana.yml | Kibana | /etc/kibana/ | 
 firewall.d | Linux FW | /etc/firewalld |
 | --------------- | --------------- | --------------- | 
