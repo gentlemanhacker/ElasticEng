@@ -6,7 +6,7 @@
 ## Key Addresses
 | Host Sensor | Netmask | Gateway/Edge | DNS Servers | pfSense |
 | --------------- | --------------- | --------------- | --------------- | --------------- |
-| 172.16.30. | 172.16.30. | 172.16.30. |172.16.30. | 172.16.30. |
+| 172.16.60.100 | 255.255.255.0 | 172.16.x.1 |172.x.x.x | 172.16.60.1 |
 | --------------- | --------------- | --------------- | --------------- | --------------- |
 
 
@@ -453,9 +453,6 @@ bootstrap.servers=172.16.40.100:9092
 `./kafka-topics.sh --bootstrap-server 172.16.40.100:9092 --describe --topic zeek-raw`
 `./kafka-topics.sh --bootstrap-server 172.16.40.100:9092 --create --topic test --partitions 5 --replication-factor 1`  
 
-###### Test
-`./kafka-console-producer.sh --broker-list 172.16.40.100:9092 --topic test`
-`./kafka-console-consumer.sh --bootstrap-server 172.16.40.100:9092 --topic test --from-beginning`
 
 ###### To wipe everything and reset from scratch:
 
@@ -465,7 +462,12 @@ sudo rm -rf  /var/lib/zookeeper/version-2/
 sudo rm -rf  /data/kafka/*
 sudo systemctl start zookeeper kafka
 ~~~
-#####To test kafka data/topics
+
+###### Test
+`./kafka-console-producer.sh --broker-list 172.16.40.100:9092 --topic test`
+`./kafka-console-consumer.sh --bootstrap-server 172.16.40.100:9092 --topic test --from-beginning`
+
+##### To test kafka data/topics
 ~~~
  /usr/share/kafka/bin/kafka-console-producer.sh  --broker-list 172.16.30.100:9092 --topic test`
  /usr/share/kafka/bin/kafka-console-consumer.sh  --bootstra
@@ -537,11 +539,134 @@ server.7=172.16.1.100:2182:2183
 `firewall-cmd --reload`  
 `systemctl start zookeeper`  
 `vi /etc/kafka/server.properties`  
-zokeeper.connect=<all ip addresses>
+`zokeeper.connect=<all ip addresses>`
 ~~~
 172.16.1.100:2181,172.16.10.100:2181,172.16.20.100:2181,172.16.30.100:2181, 172.16.40.100:2181,172.16.50.100:2181
 ~~~
 `systemctl start kafka`
 
 
-###Logstash Setup
+### Logstash Setup
+
+1. sudo yum install logstash -y
+2. modify the /etc/logstash/startup.options file
+  - un-comment the JAVACMD=/usr/bin/java line to allow logstash to use the previously installed java that was installed with kafka.
+3. modify HEAP settings in /etc/logstash/jvm.options
+  - Note, typically under JVM Configuration header change -Xms1g and -Xmx1g to a value larger than 1g based on your production hardware. Make both values equal to each other.
+4. `cd /usr/share/logstash/bin/`  
+`./system-install /etc/logstash/startup.options`  
+`cd /etc/logstash/`   
+`cd /var/log/zeek/current`  
+`curl 192.168.2.11`
+
+##### to create some logs
+`cd ~`  
+`/usr/share/kafka/bin/kafka-console-consumer.sh --bootstrap-server 172.16.40.100:9092 --topic zeek-raw --from-beginning | grep http > http.log`  stop after a few seconds  
+`mv http.log temp.log`  
+`cat temp.log | grep version > http.log`  
+
+~~~
+input {
+    file {
+        path => "/etc/logstash/conf.d/my-http.json"
+        add_field => { "[@metadata][tags]" => "zeek-http" }
+        start_position => "beginning"
+        sincedb_path => "/dev/null"
+    }
+}
+~~~
+100-filter.conf
+~~~
+filter {
+
+  mutate {
+
+   # Copy original log to event.original.
+
+   copy => { "[message]" => "[event][original]" }
+   remove_field => [ "[message]" ]
+
+   # Add ECS Version.
+
+   add_field => { "[ecs][version]" => "1.7.0"  }
+
+
+   # Copy @timestamp to event.created to capture Logstash event handling time.
+
+   copy => { "[@timestamp]" => "[event][created]" }
+
+  }
+
+  # Update @timestamp to use the timestamp from the actual event. Remove the zeek.ts field.
+
+  date { match => [ "[ts]", "UNIX", "UNIX_MS", "ISO8601" ] }
+
+  mutate { remove_field => [ "[ts]" ] }
+
+}
+~~~
+
+200-filter.conf
+~~~
+filter {
+
+  if "zeek-http" in [@metadata]
+
+  mutate {
+
+    rename => {
+      "[id_orig_h]" => "[source][address]"
+      "[id_orig_p]" => "[source][port
+      "[id_resp_h]" => "[source][address]"
+      "[id_resp_p]" => "[destination][port]"
+      "[status_code]" => "[http][response][status_code]"
+
+    }
+
+  }
+}
+~~~
+id_resp_p
+id resp_host
+
+
+### Logstash notes
+  - transforms
+  - server side
+  - can receive, fetch and send data
+  - protocols
+  - careful with filters
+  - conditional checks are important
+  - if statements are very important to filter / mutate properly
+  -  each pipeline will use 1 worker per cpu core by default
+  - config for pipelines is different then regular logstash config files
+
+  ### Install Elasticsearch
+`yum install elasticsearch -y`  
+`ls -l /data`  
+`chown elasticsearch:elasticsearch /data/elastic/`  
+`chmod 755 /data/elastic/`  
+`cd /etc/elasticsearch`  
+`vim elasticsearch.yml`
+- uncomment cluster.name and name it whatever
+- uncomment node.name and name it whatever
+- change path.data to /data/elastic
+- uncomment bootstrap.memory_lock
+- uncomment network.host: 172.16.40.100  
+- under Discovery add line: `discovery.type: single-node`
+
+`mkdir /etc/systemd/system/elasticsearch.service.d`  
+`chmod 755 /etc/systemd/system/elasticsearch.service.d`  
+`vim /etc/systemd/system/elasticsearch.service.d/override.conf`  
+~~~
+[Service]
+LimitMEMLOCK=infinity
+~~~
+`vim /etc/elasticsearch/jvm.options`  
+- change Xms4g to 4g on both
+
+`firewall-cmd --add-port={9200,9300}/tcp --permanent`  
+`firewall-cmd --reload`  
+`systemctl start elasticsearch`  
+`curl http://172.16.40.100:9200` to check if up and working  
+``
