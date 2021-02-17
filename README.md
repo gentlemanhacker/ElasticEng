@@ -6,7 +6,7 @@
 ## Key Addresses
 | Host Sensor | Netmask | Gateway/Edge | DNS Servers | pfSense |
 | --------------- | --------------- | --------------- | --------------- | --------------- |
-| 172.16.60.100 | 255.255.255.0 | 172.16.x.1 |172.x.x.x | 172.16.60.1 |
+| 172.16.60.100 | 255.255.255.0 | 172.16.x.1 |192.168.2.1 | 172.16.60.1 |
 | --------------- | --------------- | --------------- | --------------- | --------------- |
 
 
@@ -473,6 +473,39 @@ sudo systemctl start zookeeper kafka
  /usr/share/kafka/bin/kafka-console-consumer.sh  --bootstra
 ~~~
 
+##### To create Kafka Cluster
+
+- Shutdown kafka and zookeeper
+- sudo systemctl stop kafka zookeeper
+- clean up old kafka data and zookeeper data
+- sudo rm -rf /var/lib/zookeeper/version-2/
+- sudo rm -rf /data/kafka/*
+
+`vi /var/lib/zookeeper/myid`
+`4`
+`vi /etc/zookeeper/zoo.cfg`
+
+append
+~~~
+server.1=172.16.10.100:2182:2183
+server.2=172.16.20.100:2182:2183
+server.3=172.16.30.100:2182:2183
+server.4=172.16.40.100:2182:2183
+server.5=172.16.50.100:2182:2183
+server.7=172.16.1.100:2182:2183
+~~~
+
+`firewall-cmd --add-port=2182/tcp --permanent`  
+`firewall-cmd --add-port=2183/tcp --permanent`  
+`firewall-cmd --reload`  
+`systemctl start zookeeper`  
+`vi /etc/kafka/server.properties`  
+`zokeeper.connect=<all ip addresses>`
+~~~
+172.16.1.100:2181,172.16.10.100:2181,172.16.20.100:2181,172.16.30.100:2181, 172.16.40.100:2181,172.16.50.100:2181
+~~~
+`systemctl start kafka`
+
 #### Filebeat
 `yum install filebeat`  
 `cp /etc/filebeat/filebeat.yml /etc/filebeat/filebeat.yml.back`  
@@ -512,40 +545,6 @@ cape stack
 `suricata/ zeek-config`for zeek config information
 
 
-##### To create Kafka Cluster
-
-- Shutdown kafka and zookeeper
-- sudo systemctl stop kafka zookeeper
-- clean up old kafka data and zookeeper data
-- sudo rm -rf /var/lib/zookeeper/version-2/
-- sudo rm -rf /data/kafka/*
-
-`vi /var/lib/zookeeper/myid`
-`4`
-`vi /etc/zookeeper/zoo.cfg`
-
-append
-~~~
-server.1=172.16.10.100:2182:2183
-server.2=172.16.20.100:2182:2183
-server.3=172.16.30.100:2182:2183
-server.4=172.16.40.100:2182:2183
-server.5=172.16.50.100:2182:2183
-server.7=172.16.1.100:2182:2183
-~~~
-
-`firewall-cmd --add-port=2182/tcp --permanent`  
-`firewall-cmd --add-port=2183/tcp --permanent`  
-`firewall-cmd --reload`  
-`systemctl start zookeeper`  
-`vi /etc/kafka/server.properties`  
-`zokeeper.connect=<all ip addresses>`
-~~~
-172.16.1.100:2181,172.16.10.100:2181,172.16.20.100:2181,172.16.30.100:2181, 172.16.40.100:2181,172.16.50.100:2181
-~~~
-`systemctl start kafka`
-
-
 ### Logstash Setup
 
 1. sudo yum install logstash -y
@@ -559,7 +558,15 @@ server.7=172.16.1.100:2182:2183
 `cd /var/log/zeek/current`  
 `curl 192.168.2.11`
 
-##### to create some logs
+###### Check that things are working
+`cd /etc/logstash/`   
+`ll` -show the files  
+`cd /var/log/zeek/current`  
+`ll` -show the files  
+`curl 192.168.2.11`  
+`ll` -show the files and ensure logs generated  
+
+##### to create some logs (not testable)
 `cd ~`  
 `/usr/share/kafka/bin/kafka-console-consumer.sh --bootstrap-server 172.16.40.100:9092 --topic zeek-raw --from-beginning | grep http > http.log`  stop after a few seconds  
 `mv http.log temp.log`  
@@ -629,6 +636,40 @@ filter {
 id_resp_p
 id resp_host
 
+##### Module Setup
+`cd /etc/logstash/`  
+`sudo curl -L -O http://192.168.2.11:8009/logstash.tar.gz`  
+`tar xvzf logstash.tar.gz`  
+`rm logstash.tar.gz`  
+`rm -rf *fsf*`  
+`vim logstash-100-input-kafka-suricata.conf`
+- change bootstrap_servers to 172.1.6.40.100
+
+`vim logstash-100-input-kafka-zeek.conf`
+- change bootstrap_servers to 172.1.6.40.100
+
+`vim logstash-9999-output-elasticsearch.conf`
+- comment out stdout
+- hit ctrl
+  - `:%s/127.0.0.1/172.16.40.100/g`
+
+###### Add Templates
+`curl -L -O http://192.168.2.11:8009/ecskibana.tar.gz`  
+`tar xvzf ecskibana.tar.gz`  
+`cd ecsconfiguration/elasticsearch/`  
+`vim default.json`
+- change order to 5 from 0
+
+`./import-index-templates.sh 'http://172.16.40.100:9200'`
+
+###### Check Configuration
+`/usr/share/logstash/bin/logstash -t -f /etc/logstash/conf.d/ --path.settings=/etc/logstash`
+
+
+###### Start Logstash
+`systemctl start logstash`  
+`systemctl status logstash`  
+
 
 ### Logstash notes
   - transforms
@@ -670,3 +711,24 @@ LimitMEMLOCK=infinity
 `systemctl start elasticsearch`  
 `curl http://172.16.40.100:9200` to check if up and working  
 ``
+
+### Install Kibana
+`yum install kibana -y`  
+
+###### Edit Config
+`vim /etc/kibana/kibana.yml`
+- uncomment server.host and change to `"172.16.60.100"`
+- uncomment server.name and change to `"justin-kibana"`
+- uncomment elasticsearch.hosts: and change to `"172.16.60.100"`
+
+##### Firewall rules
+`firewall-cmd --add-port=5601/tcp --permanent`  
+`firewall-cmd --reload`
+
+##### Start Kibana
+`systemctl start kibana`  
+`systemctl status kibana`  
+
+###### Navigate to 172.16.60.100:5601
+- hit disable usage data
+  - search usage and disable telemetry data
