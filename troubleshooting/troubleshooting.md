@@ -4,6 +4,9 @@
 /_cat/indices
 
 ## Elasticsearch Troubleshooting
+GET _cat/nodes?v
+GET _cluster/state
+GET _cluster/health
 
 ## Kibana Troubleshooting
 watch -d "curl ip:9200/_cat_indices" #shows indices growing hopefully
@@ -14,13 +17,23 @@ no route - firewalld conn refused - selinux
 
 ss -lnt
 
-## Stenographer Troubleshooting
+## Stenographer/Moloch Troubleshooting
+df –h for space
+
+Moloch:
+Curl –XGET http://localhost:9200/_cluster/health?pretty
+Curl –XGET http://localhost:9200/_cat/nodes
+Curl –XGET http://localhost:9200/_cat/allocation?v
+
 
 ## Kafka/Zookeeper Troubleshooting
 
 Read Kafka data in real time
 * systemctl stop logstash
 * /usr/share/kafka/bin/kafka-console-consumer.sh --bootstrap-server 172.16.30.102:9092 --topic zeek-raw
+
+Kafka.service, zookeeper.service, filbeat.service
+Ps aux | grep kafka to ensure it is running
 
 - `systemctl stop kafka zookeeper` -takes a few minutes
 - `rm -rf /var/lib/zookeeper/version-2/*`
